@@ -1,10 +1,15 @@
 import tensorflow as tf
+
+from tensorflow.python.client import timeline
 from utils import iterator_utils
 from utils import vocab_utils
 import argparse
 
 # If a vocab size is greater than this value, put the embedding on cpu instead
 VOCAB_SIZE_THRESHOLD_CPU = 50000
+
+# PATH
+PATH = "/home/titanxp/prac_nmt"
 
 def _get_embed_device(vocab_size):
 	if vocab_size > VOCAB_SIZE_THRESHOLD_CPU:
@@ -250,4 +255,21 @@ encoder_outputs, bi_encoder_state = _build_bidirectional_rnn(
 																			num_bi_layers=num_bi_layers,
 																			num_bi_residual_layers=num_bi_residual_layers)
 
-print(encoder_outputs, bi_encoder_state)
+init_op = tf.initialize_all_variables()
+run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+run_metadata = tf.RunMetadata()
+with tf.Session() as sess:
+	sess.run(init_op)
+	sess.run(tf.tables_initializer())
+	sess.run(iterator.initializer, feed_dict={skip_count_placeholder: 0})
+	sess.run(encoder_outputs, options=run_options, run_metadata=run_metadata)
+	sess.run(bi_encoder_state, options=run_options, run_metadata=run_metadata)
+
+	tl = timeline.Timeline(step_stats=run_metadata.step_stats)
+	ctf = tl.generate_chrome_trace_format(show_memory=True)
+
+	trace_name = "trace_outputs_state.json"
+	trace_file = PATH + '/' + trace_name
+	with open(trace_file, 'w') as f:
+		f.write(ctf)
+#print(encoder_outputs, bi_encoder_state)
